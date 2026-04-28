@@ -4,10 +4,10 @@ import time
 from flask import Flask
 from threading import Thread
 
-# 1. WEB SERVER
+# 1. WEB SERVER (Keeps Render 'Live')
 app = Flask('')
 @app.route('/')
-def home(): return "BOT STATUS: 🟢 LIVE"
+def home(): return "BOT STATUS: 🟢 LIVE & SECURE"
 
 def run_web():
     port = int(os.environ.get("PORT", 8080))
@@ -17,51 +17,34 @@ def run_web():
 TOKEN = os.environ.get('BOT_TOKEN')
 bot = telebot.TeleBot(TOKEN)
 
-# --- FIXED WELCOME FUNCTION ---
 @bot.message_handler(commands=['start'])
 def welcome(message):
+    # FIXED: Uses proper InlineKeyboardButton
     markup = telebot.types.InlineKeyboardMarkup()
-    # Fixed: Inline buttons MUST have a callback_query_data or a url
-    btn = telebot.types.InlineKeyboardButton(text="💳 GATES", callback_query_data="gt")
-    markup.add(btn)
-    
-    bot.send_message(
-        message.chat.id, 
-        "💎 **CCCHECKERMAX IS READY**\n\nClick the button below to see gates:", 
-        reply_markup=markup, 
-        parse_mode="Markdown"
-    )
+    markup.add(telebot.types.InlineKeyboardButton(text="💳 GATES", callback_query_data="gt"))
+    bot.send_message(message.chat.id, "💎 **READY**\nClick below:", reply_markup=markup)
 
 @bot.callback_query_handler(func=lambda call: True)
 def cb(call):
     if call.data == "gt":
-        # Fixed: Simplified response
-        bot.edit_message_text(
-            chat_id=call.message.chat.id,
-            message_id=call.message.message_id,
-            text="💳 **GATES AVAILABLE**\n\n▷ `/chk` - Auth\n▷ `/sd` - Stripe",
-            parse_mode="Markdown"
-        )
+        bot.edit_message_text("💳 `/chk` | `/sd`", call.message.chat.id, call.message.message_id)
 
-# --- ENGINE ---
+# 3. THE ENGINE
 def start_bot():
-    print("--- ATTEMPTING TO START POLLING ---")
     while True:
         try:
+            print("Cleaning old connections...")
             bot.remove_webhook()
-            # Clear backlog so it doesn't crash on start
-            bot.delete_webhook(drop_pending_updates=True)
+            # This drops the 'stuck' messages causing the crash
+            bot.delete_webhook(drop_pending_updates=True) 
             print("--- SUCCESS: BOT IS POLLING ---")
             bot.polling(none_stop=True, timeout=20)
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"Connection Error: {e}. Restarting...")
             time.sleep(5)
 
 if __name__ == "__main__":
-    # Start web server
     t = Thread(target=run_web)
     t.daemon = True
     t.start()
-    
-    # Run bot
     start_bot()
