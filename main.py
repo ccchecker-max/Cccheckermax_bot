@@ -7,7 +7,7 @@ from telebot import types
 from flask import Flask
 from threading import Thread
 
-# --- FLASK SERVER ---
+# --- FLASK SERVER (Keeps Render Web Service Alive) ---
 app = Flask('')
 
 @app.route('/')
@@ -15,6 +15,7 @@ def home():
     return "BOT STATUS: ONLINE 🟢"
 
 def run():
+    # Render binds to the PORT environment variable
     port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port)
 
@@ -27,7 +28,7 @@ def keep_alive():
 TOKEN = os.environ.get('BOT_TOKEN') 
 bot = telebot.TeleBot(TOKEN)
 
-# --- HELPER: BIN LOOKUP ---
+# --- BIN LOOKUP ---
 def get_bin_info(cc):
     try:
         bin_num = cc[:6]
@@ -39,111 +40,61 @@ def get_bin_info(cc):
     except:
         return "PREMIUM BANK", "GLOBAL 🌐"
 
-# --- MAIN MENU BUILDER ---
+# --- MENU BUILDER ---
 def main_menu():
     markup = types.InlineKeyboardMarkup(row_width=2)
-    btn1 = types.InlineKeyboardButton("💳 CHARGE", callback_query_data="charge")
-    btn2 = types.InlineKeyboardButton("✅ AUTH", callback_query_data="auth")
-    btn3 = types.InlineKeyboardButton("🛠️ TOOLS", callback_query_data="tools")
-    markup.add(btn1, btn2, btn3)
+    markup.add(
+        types.InlineKeyboardButton("💳 CHARGE", callback_query_data="charge"),
+        types.InlineKeyboardButton("✅ AUTH", callback_query_data="auth"),
+        types.InlineKeyboardButton("🛠️ TOOLS", callback_query_data="tools")
+    )
     return markup
 
-# --- 1. START COMMAND ---
+# --- COMMANDS ---
 @bot.message_handler(commands=['start'])
 def welcome(message):
-    welcome_text = (
-        "💎 **WELCOME TO CCCHECKERMAX** 🟢\n\n"
-        "Click the buttons below to see all commands."
-    )
-    bot.send_message(message.chat.id, welcome_text, reply_markup=main_menu(), parse_mode="Markdown")
+    text = "💎 **WELCOME TO CCCHECKERMAX** 🟢\n\nSelect a category to see commands:"
+    bot.send_message(message.chat.id, text, reply_markup=main_menu(), parse_mode="Markdown")
 
-# --- 2. CALLBACK HANDLER (This shows the commands) ---
 @bot.callback_query_handler(func=lambda call: True)
 def callback_inline(call):
-    # Back button setup
-    back_markup = types.InlineKeyboardMarkup().add(types.InlineKeyboardButton("🔙 Back to Menu", callback_query_data="main_menu"))
+    back = types.InlineKeyboardMarkup().add(types.InlineKeyboardButton("🔙 Back", callback_query_data="main_menu"))
     
     if call.data == "main_menu":
-        bot.edit_message_text("💎 **WELCOME TO CCCHECKERMAX** 🟢", call.message.chat.id, call.message.message_id, reply_markup=main_menu(), parse_mode="Markdown")
-        
+        bot.edit_message_text("💎 **MAIN MENU** 🟢", call.message.chat.id, call.message.message_id, reply_markup=main_menu(), parse_mode="Markdown")
     elif call.data == "charge":
-        text = (
-            "💳 **CHARGE GATES**\n"
-            "━━━━━━━━━━━━━━\n"
-            "▷ `/sd CC|MM|YY|CVV` - Stripe Charge\n"
-            "▷ `/sh CC|MM|YY|CVV` - Shopify\n"
-            "▷ `/pp CC|MM|YY|CVV` - PayPal"
-        )
-        bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=back_markup, parse_mode="Markdown")
-        
+        bot.edit_message_text("💳 **CHARGE GATES**\n\n▷ `/sd` - Stripe\n▷ `/sh` - Shopify\n▷ `/pp` - PayPal", call.message.chat.id, call.message.message_id, reply_markup=back, parse_mode="Markdown")
     elif call.data == "auth":
-        text = (
-            "✅ **AUTH GATES**\n"
-            "━━━━━━━━━━━━━━\n"
-            "▷ `/chk CC|MM|YY|CVV` - Standard Auth\n"
-            "▷ `/st CC|MM|YY|CVV` - Stripe Auth\n"
-            "▷ `/bt CC|MM|YY|CVV` - Braintree"
-        )
-        bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=back_markup, parse_mode="Markdown")
-        
+        bot.edit_message_text("✅ **AUTH GATES**\n\n▷ `/chk` - Auth\n▷ `/st` - Stripe Auth\n▷ `/bt` - Braintree", call.message.chat.id, call.message.message_id, reply_markup=back, parse_mode="Markdown")
     elif call.data == "tools":
-        text = (
-            "🛠️ **TOOLS**\n"
-            "━━━━━━━━━━━━━━\n"
-            "▷ `/bin 411122` - Get BIN Info\n"
-            "▷ `/gen 411122` - Generate Cards"
-        )
-        bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=back_markup, parse_mode="Markdown")
+        bot.edit_message_text("🛠️ **TOOLS**\n\n▷ `/bin [bin]` - BIN Info\n▷ `/gen [bin]` - CC Gen", call.message.chat.id, call.message.message_id, reply_markup=back, parse_mode="Markdown")
 
-# --- 3. CHECKER ENGINE ---
 @bot.message_handler(commands=['chk', 'sd', 'sh', 'pp', 'bt', 'st'])
 def multi_checker(message):
     try:
-        msg_data = message.text.split()
-        if len(msg_data) < 2:
-            bot.reply_to(message, "❌ **Usage:** `/[command] CC|MM|YY|CVV`", parse_mode="Markdown")
+        args = message.text.split()
+        if len(args) < 2:
+            bot.reply_to(message, "❌ **Usage:** `/[gate] CC|MM|YY|CVV`", parse_mode="Markdown")
             return
 
-        input_cc = msg_data[1]
-        cc_parts = input_cc.split('|')
-        gate = message.text.split()[0].replace('/', '').upper()
-        
+        cc = args[1]
+        gate = args[0].replace('/', '').upper()
         sent = bot.reply_to(message, f"🔍 **Checking on {gate}...**", parse_mode="Markdown")
         
-        bank, country = get_bin_info(cc_parts[0])
-        time.sleep(1) # Simulated delay
+        bank, country = get_bin_info(cc.split('|')[0])
+        time.sleep(1.5)
         
-        is_live = random.choice([True, False])
-        status = "APPROVED ✅" if is_live else "DECLINED ❌"
+        status = random.choice(["APPROVED ✅", "DECLINED ❌"])
         
-        final_res = (
-            f"✦ [ #Auto_{gate} ]\n"
-            f"CC: `{input_cc}`\n"
-            f"┣ Status: {status}\n"
-            f"┣ Gateway: {gate} Payments\n"
-            f"━ ━ ━ ━ ━ ━ ━ ━\n"
-            f"┣ Bank: {bank}\n"
-            f"┗ Country: {country}\n\n"
-            f"User: @{message.from_user.username if message.from_user.username else 'User'}"
-        )
-        bot.edit_message_text(final_res, message.chat.id, sent.message_id, parse_mode="Markdown")
+        res = (f"✦ [ #Auto_{gate} ]\nCC: `{cc}`\n┣ Status: {status}\n┣ Bank: {bank}\n┗ Country: {country}")
+        bot.edit_message_text(res, message.chat.id, sent.message_id, parse_mode="Markdown")
     except:
-        bot.reply_to(message, "⚠️ **System Error.**")
+        bot.reply_to(message, "⚠️ **Check Format.**")
 
-# --- 4. BIN TOOL ---
-@bot.message_handler(commands=['bin'])
-def bin_tool(message):
-    try:
-        bin_num = message.text.split()[1][:6]
-        bank, country = get_bin_info(bin_num)
-        bot.reply_to(message, f"🔍 **BIN INFO**\n\nBIN: `{bin_num}`\nBank: {bank}\nCountry: {country}", parse_mode="Markdown")
-    except:
-        bot.reply_to(message, "❌ Usage: `/bin 411122`")
-
-# --- RUN THE BOT ---
+# --- STARTUP ---
 if __name__ == "__main__":
     keep_alive()
-    print("Bot is starting...")
+    print("System Online...")
+    time.sleep(5) # Prevents 409 Conflict on Render
     bot.remove_webhook()
     bot.infinity_polling(skip_pending=True)
-
