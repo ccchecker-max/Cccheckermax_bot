@@ -1,14 +1,7 @@
-# This tells Render to use a system that HAS Python 3.10 already installed
 FROM python:3.10-slim
-
-# Set the working directory
 WORKDIR /app
-
-# Copy your files into the system
+COPY requirements.txt .
+RUN pip install -r requirements.txt
 COPY . .
-
-# Install the libraries from your requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Start your bot
-CMD ["python", "main.py"]
+# We use gunicorn to handle the web traffic properly on Render
+CMD gunicorn main:app --bind 0.0.0.0:8080 --worker-class gthread --threads 4 & python main.py
