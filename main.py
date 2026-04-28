@@ -15,7 +15,7 @@ def keep_alive():
     t.start()
 
 # --- REPLACE WITH YOUR NEW TOKEN ---
-BOT_TOKEN = "8572635808:AAERJ8lmiRaYMYHS6i52C2-gtQSav1VdKiY"
+BOT_TOKEN = "8572635808:AAF6XihNB84pYcjCjieJa4Bbz5-fAsMOrxw"
 bot = telebot.TeleBot(BOT_TOKEN)
 
 def get_bin_info(cc):
