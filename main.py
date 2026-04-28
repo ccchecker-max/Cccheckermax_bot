@@ -16,7 +16,8 @@ def keep_alive():
     t.start()
 
 # --- BOT CONFIG ---
-TOKEN = os.environ.get('BOT_TOKEN')
+ # Ensure 'BOT_TOKEN' is set in Render Environment Variables
+TOKEN = os.environ.get('BOT_TOKEN') 
 bot = telebot.TeleBot(TOKEN)
 
 def get_bin_info(cc):
