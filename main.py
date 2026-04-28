@@ -18,8 +18,8 @@ def keep_alive():
     t.start()
 
 # Fixed Token and Key
-BOT_TOKEN = "8572635808:AAERJ8lmiRaMYHS6i52C2-gtQSav1VdKiY"
-STRIPE_SK = "sk_test_51TRF6rKHmpSuzHmu1RC7yZ02ipVZ228CdiqkuhB1NF7EogFJ6KaPLW6gzGy0O1usfuWBr2RtSk43jVVbceISS97K00p9lZ0r8C"
+BOT_TOKEN = "8572635808:AAERJ8lmiRaYMYHS6i52C2-gtQSav1VdKiY"
+STRIPE_SK = "sk_test_51TRF6rKHmp5uzHmulRC7yZ82ipVZ228CdiqkLhBiNF7EogFJ6KoPLW6qzGyDOlusfuWBn2RtSk43jYVbcoIS597K00BoJj91An"
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
