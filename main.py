@@ -17,7 +17,7 @@ def keep_alive():
 
 # 2. BOT CONFIGURATION
 # Replace this token if you generate a new one from @BotFather
-BOT_TOKEN = "8572635808:AAF6XihNB84pYcjCjieJa4Bbz5-fAsMOrxw"
+BOT_TOKEN = "8572635808:AAFSf7ro-S8xkWksIQc6XqmahEQ5gxLnPQE"
 bot = telebot.TeleBot(BOT_TOKEN)
 
 def get_bin_info(cc):
