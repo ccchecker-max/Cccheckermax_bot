@@ -7,20 +7,26 @@ from telebot import types
 from flask import Flask
 from threading import Thread
 
-# 1. WEB SERVER (Keeps Render from sleeping)
+# 1. WEB SERVER (This is what Render watches)
 app = Flask('')
-@app.route('/')
-def home(): return "BOT STATUS: 🟢 ACTIVE"
 
-def keep_alive():
+@app.route('/')
+def home():
+    return "SYSTEM STATUS: 🟢 BOT IS ACTIVE AND SECURE"
+
+@app.route('/health')
+def health():
+    return "OK", 200
+
+def run_web_server():
+    # Render provides the PORT environment variable automatically
     port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port)
 
-# 2. SECURE TOKEN (Loads from Render Environment)
+# 2. BOT LOGIC
 TOKEN = os.environ.get('BOT_TOKEN')
 bot = telebot.TeleBot(TOKEN)
 
-# 3. COMMAND: /START
 @bot.message_handler(commands=['start'])
 def welcome(message):
     markup = types.InlineKeyboardMarkup(row_width=2)
@@ -28,9 +34,8 @@ def welcome(message):
         types.InlineKeyboardButton("💳 GATES", callback_query_data="gates"),
         types.InlineKeyboardButton("🛠️ TOOLS", callback_query_data="tools")
     )
-    bot.send_message(message.chat.id, "💎 **CCCHECKERMAX IS LIVE**\n\nSelect a category:", reply_markup=markup, parse_mode="Markdown")
+    bot.send_message(message.chat.id, "💎 **CCCHECKERMAX LIVE** 🟢\n\nSelect an option below:", reply_markup=markup, parse_mode="Markdown")
 
-# 4. MENU CALLBACKS
 @bot.callback_query_handler(func=lambda call: True)
 def callback_inline(call):
     if call.data == "gates":
@@ -39,32 +44,41 @@ def callback_inline(call):
         text = "🛠️ **TOOLS**\n\n▷ `/bin` - BIN Info\n▷ `/gen` - CC Gen"
     else: return
     
-    back = types.InlineKeyboardMarkup().add(types.InlineKeyboardButton("🔙 Back", callback_query_data="main_menu"))
+    back = types.InlineKeyboardMarkup().add(types.InlineKeyboardButton("🔙 Back", callback_query_data="main"))
     bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=back, parse_mode="Markdown")
 
-# 5. CHECKER ENGINE
 @bot.message_handler(commands=['chk', 'sd', 'sh'])
 def multi_checker(message):
     try:
         args = message.text.split()
         if len(args) < 2:
-            bot.reply_to(message, "❌ Format: `/[cmd] CC|MM|YY|CVV`", parse_mode="Markdown")
+            bot.reply_to(message, "❌ Use: `/[cmd] CC|MM|YY|CVV`", parse_mode="Markdown")
             return
         sent = bot.reply_to(message, "🔍 **Checking...**", parse_mode="Markdown")
         time.sleep(2)
-        bot.edit_message_text("✦ RESULT: APPROVED ✅", message.chat.id, sent.message_id)
+        bot.edit_message_text("✦ RESULT: **APPROVED ✅**", message.chat.id, sent.message_id, parse_mode="Markdown")
     except:
-        bot.reply_to(message, "⚠️ Error!")
+        bot.reply_to(message, "⚠️ Format Error!")
 
-# 6. STARTUP LOGIC
+# 3. THE ENGINE (The part that prevents the 'Conflict' and 'Silent' issues)
+def run_bot():
+    while True:
+        try:
+            print("--- SECURING CONNECTION ---")
+            bot.remove_webhook()
+            bot.delete_webhook(drop_pending_updates=True)
+            print("--- BOT IS POLLING ---")
+            bot.polling(none_stop=True, interval=0, timeout=20)
+        except Exception as e:
+            print(f"Bot error, restarting in 5s: {e}")
+            time.sleep(5)
+
 if __name__ == "__main__":
-    t = Thread(target=keep_alive)
-    t.start()
+    # Start the Bot in a background thread
+    bot_thread = Thread(target=run_bot)
+    bot_thread.daemon = True
+    bot_thread.start()
     
-    print("--- CONNECTING TO TELEGRAM ---")
-    bot.remove_webhook()
-    time.sleep(1)
-    bot.delete_webhook(drop_pending_updates=True)
-    
-    print("--- SUCCESS: BOT IS LIVE ---")
-    bot.infinity_polling(timeout=10, long_polling_timeout=5)
+    # Start the Web Server in the MAIN thread (This keeps Render happy)
+    print("--- STARTING WEB SERVER ---")
+    run_web_server()
