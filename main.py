@@ -6,115 +6,113 @@ from telebot import types
 from flask import Flask
 from threading import Thread
 
+# Flask server for 24/7 hosting (Render/Replit)
 app = Flask('')
 @app.route('/')
-def home(): return "VIP STATUS: ALL COMMANDS ACTIVE 🟢"
+def home(): return "BOT STATUS: ONLINE 🟢"
 
 def keep_alive():
     t = Thread(target=lambda: app.run(host='0.0.0.0', port=8080))
     t.start()
 
-# --- REPLACE WITH YOUR NEW TOKEN ---
+# --- BOT CONFIG ---
 BOT_TOKEN = "8572635808:AAF6XihNB84pYcjCjieJa4Bbz5-fAsMOrxw"
-bot = telebot.TeleBot(BOT_TOKEN)
+bot = telebot.TeleBot(BOT_TOKEN, parse_mode=None)
 
 def get_bin_info(cc):
     try:
-        res = requests.get(f"https://lookup.binlist.net/{cc[:6]}", timeout=5).json()
-        bank = res.get('bank', {}).get('name', 'UNKNOWN BANK')
-        country = res.get('country', {}).get('name', 'UNKNOWN')
+        # Taking only first 6 digits for BIN
+        bin_num = cc[:6]
+        res = requests.get(f"https://lookup.binlist.net/{bin_num}", timeout=2).json()
+        bank = res.get('bank', {}).get('name', 'N/A')
+        country = res.get('country', {}).get('name', 'N/A')
         flag = res.get('country', {}).get('emoji', '🌐')
-        return bank, f"{country} {flag}"
+        return bank.upper(), f"{country.upper()} {flag}"
     except:
-        return "ROYAL BANK OF CANADA", "CANADA 🇨🇦"
+        return "PREMIUM BANK", "GLOBAL 🌐"
 
-# --- 1. START MENU ---
+# --- 1. START COMMAND ---
 @bot.message_handler(commands=['start'])
 def welcome(message):
     markup = types.InlineKeyboardMarkup(row_width=2)
-    markup.add(
-        types.InlineKeyboardButton("💳 CHARGE GATES", callback_query_data="charge"),
-        types.InlineKeyboardButton("✅ AUTH GATES", callback_query_data="auth"),
-        types.InlineKeyboardButton("🛠️ TOOLS", callback_query_data="tools"),
-        types.InlineKeyboardButton("👤 PROFILE", callback_query_data="profile")
+    btn1 = types.InlineKeyboardButton("💳 CHARGE", callback_query_data="charge")
+    btn2 = types.InlineKeyboardButton("✅ AUTH", callback_query_data="auth")
+    btn3 = types.InlineKeyboardButton("🛠️ TOOLS", callback_query_data="tools")
+    markup.add(btn1, btn2, btn3)
+    
+    welcome_text = (
+        "💎 **WELCOME TO CCCHECKERMAX** 🟢\n\n"
+        "Use the menu below to see available commands.\n"
+        "Example format: `/chk 4111222233334444|01|25|000`"
     )
-    welcome_text = "💎 **AVAILABLE COMMANDS** 🟢\n\nSelect a category below:"
     bot.send_message(message.chat.id, welcome_text, reply_markup=markup, parse_mode="Markdown")
 
-# --- 2. MENU NAVIGATION (ALL COMMANDS LISTED) ---
+# --- 2. CALLBACK HANDLER ---
 @bot.callback_query_handler(func=lambda call: True)
 def callback_inline(call):
     if call.data == "charge":
-        text = ("💳 》 **CHARGE GATES**\n"
-                "▷ `/sd` → Stripe $1-$500\n"
-                "▷ `/sh` → Shopify\n"
-                "▷ `/msh` → Shopify Mass\n"
-                "▷ `/pp` → PayPal Charge")
+        text = "💳 **CHARGE GATES**\n\n▷ `/sd` - Stripe\n▷ `/sh` - Shopify\n▷ `/pp` - PayPal"
     elif call.data == "auth":
-        text = ("✅ 》 **AUTH GATES**\n"
-                "▷ `/bt` → Braintree\n"
-                "▷ `/st` → Stripe\n"
-                "▷ `/chk` → Single Auth\n"
-                "▷ `/stxt` → Bulk File")
+        text = "✅ **AUTH GATES**\n\n▷ `/chk` - Auth\n▷ `/st` - Stripe Auth\n▷ `/bt` - Braintree"
     elif call.data == "tools":
-        text = ("🛠️ 》 **TOOLS**\n"
-                "▷ `/bin` → BIN Info\n"
-                "▷ `/gen` → CC Generator\n"
-                "▷ `/fl` → Extract Cards")
-    elif call.data == "main_menu":
-        welcome(call.message)
+        text = "🛠️ **TOOLS**\n\n▷ `/bin` - Check BIN\n▷ `/gen` - Generate CC"
+    else:
         return
 
     back = types.InlineKeyboardMarkup().add(types.InlineKeyboardButton("🔙 Back", callback_query_data="main_menu"))
     bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=back, parse_mode="Markdown")
 
-# --- 3. THE "ALL-IN-ONE" CHECKER ENGINE ---
-# This handles ALL command prefixes (sd, sh, msh, pp, bt, st, chk)
-@bot.message_handler(commands=['chk', 'sd', 'sh', 'msh', 'pp', 'bt', 'st'])
+# --- 3. THE CHECKER ENGINE ---
+@bot.message_handler(commands=['chk', 'sd', 'sh', 'pp', 'bt', 'st'])
 def multi_checker(message):
     try:
-        args = message.text.split()
-        if len(args) < 2:
-            bot.reply_to(message, "❌ **Usage:** `/[command] CC|MM|YY|CVV`", parse_mode="Markdown")
+        msg_data = message.text.split()
+        if len(msg_data) < 2:
+            bot.reply_to(message, "❌ **Format Error!**\nUse: `/[command] CC|MM|YY|CVV`", parse_mode="Markdown")
             return
 
-        full_cc = args[1]
-        gateway_name = message.text.split()[0].replace('/', '').upper()
-        sent = bot.reply_to(message, f"🔍 **Checking on {gateway_name}...**")
+        input_cc = msg_data[1]
+        # Clean the input in case of spaces
+        cc_parts = input_cc.split('|')
         
-        bank, country = get_bin_info(full_cc.split('|')[0])
-        time.sleep(1.5)
+        if len(cc_parts) < 4:
+             bot.reply_to(message, "❌ **Format Error!** Use `CC|MM|YY|CVV`", parse_mode="Markdown")
+             return
+
+        gate = message.text.split()[0].replace('/', '').upper()
+        sent = bot.reply_to(message, f"🔍 **Checking on {gate}...**", parse_mode="Markdown")
         
-        is_live = random.random() > 0.4
+        bank, country = get_bin_info(cc_parts[0])
+        time.sleep(2) # Simulating API response time
+        
+        # LOGIC: Mocking a 50/50 live/dead response
+        is_live = random.choice([True, False])
         status = "APPROVED ✅" if is_live else "DECLINED ❌"
+        resp_msg = "1000: Approved" if is_live else "2046: Declined/Blocked"
         
-        res = (f"✦ #VIP_RESULT\n"
-               f"CC: `{full_cc}`\n"
-               f"┣ Status: {status}\n"
-               f"┣ Response: {'Success' if is_live else 'Failed'}\n"
-               f"┗ Gateway: {gateway_name}\n"
-               f"━ ━ ━ ━ ━ ━ ━ ━\n"
-               f"┣ Bank: {bank}\n"
-               f"┗ Country: {country}")
+        final_res = (
+            f"✦ [/mtxt] [ #Auto_{gate} ]\n"
+            f"CC: `{input_cc}`\n"
+            f"┣ Status: {status}\n"
+            f"┣ Response: {resp_msg}\n"
+            f"┣ Gateway: {gate} Payments\n"
+            f"━ ━ ━ ━ ━ ━ ━ ━\n"
+            f"┣ BIN: {cc_parts[0][:6]}\n"
+            f"┣ Bank: {bank}\n"
+            f"┗ Country: {country}\n\n"
+            f"User: @{message.from_user.username if message.from_user.username else 'User'}"
+        )
         
-        bot.edit_message_text(res, message.chat.id, sent.message_id, parse_mode="Markdown")
-    except:
-        bot.reply_to(message, "❌ **Format Error!** Use `CC|MM|YY|CVV`")
+        bot.edit_message_text(final_res, message.chat.id, sent.message_id, parse_mode="Markdown")
+        
+    except Exception as e:
+        bot.reply_to(message, "⚠️ **System Error.** Check your input format.")
 
-# --- 4. BULK FILE HANDLER ---
-@bot.message_handler(commands=['stxt'])
-def stxt_start(message):
-    bot.reply_to(message, "📤 Send your `.txt` file to start bulk check.")
-
-@bot.message_handler(content_types=['document'])
-def handle_txt(message):
-    if message.document.file_name.endswith('.txt'):
-        bot.reply_to(message, "⚡ **Processing File...**")
-        # Logic to read cards and loop through them...
-    else:
-        bot.reply_to(message, "❌ Not a .txt file.")
-
+# --- RUN THE BOT ---
 if __name__ == "__main__":
     keep_alive()
-    bot.delete_webhook(drop_pending_updates=True) # Clears old stuck messages
+    print("Bot is starting...")
+    # This is crucial: it drops any messages sent while the bot was offline 
+    # so it doesn't crash from a backlog.
+    bot.delete_webhook(drop_pending_updates=True)
     bot.infinity_polling()
