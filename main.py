@@ -18,10 +18,10 @@ def keep_alive():
     t.start()
 
 # Environment variables se data uthayega
-BOT_TOKEN = os.environ.get('BOT_TOKEN')
-STRIPE_SK = os.environ.get('STRIPE_SK')
+BOT_TOKEN = os.environ.get('8572635808:AAERJ8lmiRaYMYHS6i52C2-gtQSav1VdKiY')
+STRIPE_SK = os.environ.get('sk_test_51TRF6rKHmp5uzHmulRC7yZ82ipVZ228CdiqkLhBiNF7EogFJ6KoPLW6qzGyDOlusfuWBn2RtSk43jYVbcoIS597K00BoJj91An')
 
-bot = telebot.TeleBot(BOT_TOKEN)
+bot = telebot.TeleBot(8572635808:AAERJ8lmiRaYMYHS6i52C2-gtQSav1VdKiY)
 
 @bot.message_handler(commands=['start'])
 def welcome(message):
