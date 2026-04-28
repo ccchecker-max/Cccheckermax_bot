@@ -4,7 +4,7 @@ import time
 from flask import Flask
 from threading import Thread
 
-# 1. WEB SERVER (Keeps Render 'Live')
+# 1. WEB SERVER
 app = Flask('')
 @app.route('/')
 def home(): return "BOT STATUS: 🟢 LIVE & SECURE"
@@ -19,32 +19,34 @@ bot = telebot.TeleBot(TOKEN)
 
 @bot.message_handler(commands=['start'])
 def welcome(message):
-    # FIXED: Uses proper InlineKeyboardButton
+    # FIXED: Correct Inline Keyboard format
     markup = telebot.types.InlineKeyboardMarkup()
     markup.add(telebot.types.InlineKeyboardButton(text="💳 GATES", callback_query_data="gt"))
-    bot.send_message(message.chat.id, "💎 **READY**\nClick below:", reply_markup=markup)
+    bot.send_message(message.chat.id, "💎 **CCCHECKERMAX READY**\nClick below:", reply_markup=markup)
 
 @bot.callback_query_handler(func=lambda call: True)
-def cb(call):
+def cb_handler(call):
     if call.data == "gt":
-        bot.edit_message_text("💳 `/chk` | `/sd`", call.message.chat.id, call.message.message_id)
+        bot.edit_message_text("💳 `/chk` | `/sd` | `/sh`", call.message.chat.id, call.message.message_id)
 
-# 3. THE ENGINE
+# 3. ROBUST ENGINE
 def start_bot():
     while True:
         try:
-            print("Cleaning old connections...")
+            print("Cleaning old sessions...")
             bot.remove_webhook()
-            # This drops the 'stuck' messages causing the crash
+            # This wipes out 'stuck' messages from the conflict
             bot.delete_webhook(drop_pending_updates=True) 
             print("--- SUCCESS: BOT IS POLLING ---")
             bot.polling(none_stop=True, timeout=20)
         except Exception as e:
-            print(f"Connection Error: {e}. Restarting...")
+            print(f"Error: {e}. Retrying...")
             time.sleep(5)
 
 if __name__ == "__main__":
+    # Start web server in background
     t = Thread(target=run_web)
     t.daemon = True
     t.start()
+    # Run bot in main thread
     start_bot()
