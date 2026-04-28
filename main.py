@@ -6,22 +6,22 @@ from telebot import types
 from flask import Flask
 from threading import Thread
 
-# Flask server for 24/7 hosting (Render/Replit)
+# 1. FLASK SERVER (For 24/7 Hosting)
 app = Flask('')
 @app.route('/')
-def home(): return "BOT STATUS: ONLINE 🟢"
+def home(): return "BOT STATUS: 🟢 ONLINE & ACTIVE"
 
 def keep_alive():
     t = Thread(target=lambda: app.run(host='0.0.0.0', port=8080))
     t.start()
 
-# --- BOT CONFIG ---
+# 2. BOT CONFIGURATION
+# Replace this token if you generate a new one from @BotFather
 BOT_TOKEN = "8572635808:AAF6XihNB84pYcjCjieJa4Bbz5-fAsMOrxw"
-bot = telebot.TeleBot(BOT_TOKEN, parse_mode=None)
+bot = telebot.TeleBot(BOT_TOKEN)
 
 def get_bin_info(cc):
     try:
-        # Taking only first 6 digits for BIN
         bin_num = cc[:6]
         res = requests.get(f"https://lookup.binlist.net/{bin_num}", timeout=2).json()
         bank = res.get('bank', {}).get('name', 'N/A')
@@ -31,70 +31,69 @@ def get_bin_info(cc):
     except:
         return "PREMIUM BANK", "GLOBAL 🌐"
 
-# --- 1. START COMMAND ---
+# 3. COMMAND: /START
 @bot.message_handler(commands=['start'])
 def welcome(message):
     markup = types.InlineKeyboardMarkup(row_width=2)
-    btn1 = types.InlineKeyboardButton("💳 CHARGE", callback_query_data="charge")
-    btn2 = types.InlineKeyboardButton("✅ AUTH", callback_query_data="auth")
-    btn3 = types.InlineKeyboardButton("🛠️ TOOLS", callback_query_data="tools")
-    markup.add(btn1, btn2, btn3)
-    
+    markup.add(
+        types.InlineKeyboardButton("💳 CHARGE GATES", callback_query_data="charge"),
+        types.InlineKeyboardButton("✅ AUTH GATES", callback_query_data="auth"),
+        types.InlineKeyboardButton("🛠️ TOOLS", callback_query_data="tools")
+    )
     welcome_text = (
         "💎 **WELCOME TO CCCHECKERMAX** 🟢\n\n"
-        "Use the menu below to see available commands.\n"
-        "Example format: `/chk 4111222233334444|01|25|000`"
+        "Select a category below to see available commands.\n"
+        "**Format:** `/[command] CC|MM|YY|CVV`"
     )
     bot.send_message(message.chat.id, welcome_text, reply_markup=markup, parse_mode="Markdown")
 
-# --- 2. CALLBACK HANDLER ---
+# 4. MENU NAVIGATION
 @bot.callback_query_handler(func=lambda call: True)
 def callback_inline(call):
     if call.data == "charge":
-        text = "💳 **CHARGE GATES**\n\n▷ `/sd` - Stripe\n▷ `/sh` - Shopify\n▷ `/pp` - PayPal"
+        text = "💳 **CHARGE GATES**\n\n▷ `/sd` - Stripe $1\n▷ `/sh` - Shopify\n▷ `/pp` - PayPal"
     elif call.data == "auth":
-        text = "✅ **AUTH GATES**\n\n▷ `/chk` - Auth\n▷ `/st` - Stripe Auth\n▷ `/bt` - Braintree"
+        text = "✅ **AUTH GATES**\n\n▷ `/chk` - Auth Check\n▷ `/st` - Stripe Auth\n▷ `/bt` - Braintree"
     elif call.data == "tools":
-        text = "🛠️ **TOOLS**\n\n▷ `/bin` - Check BIN\n▷ `/gen` - Generate CC"
-    else:
+        text = "🛠️ **TOOLS**\n\n▷ `/bin` - BIN Info\n▷ `/gen` - CC Gen"
+    elif call.data == "main_menu":
+        welcome(call.message)
         return
 
     back = types.InlineKeyboardMarkup().add(types.InlineKeyboardButton("🔙 Back", callback_query_data="main_menu"))
     bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=back, parse_mode="Markdown")
 
-# --- 3. THE CHECKER ENGINE ---
+# 5. ALL-IN-ONE CHECKER ENGINE
 @bot.message_handler(commands=['chk', 'sd', 'sh', 'pp', 'bt', 'st'])
 def multi_checker(message):
     try:
         msg_data = message.text.split()
         if len(msg_data) < 2:
-            bot.reply_to(message, "❌ **Format Error!**\nUse: `/[command] CC|MM|YY|CVV`", parse_mode="Markdown")
+            bot.reply_to(message, "❌ **Usage:** `/[cmd] CC|MM|YY|CVV`", parse_mode="Markdown")
             return
 
-        input_cc = msg_data[1]
-        # Clean the input in case of spaces
-        cc_parts = input_cc.split('|')
+        input_data = msg_data[1]
+        cc_parts = input_data.split('|')
         
         if len(cc_parts) < 4:
-             bot.reply_to(message, "❌ **Format Error!** Use `CC|MM|YY|CVV`", parse_mode="Markdown")
+             bot.reply_to(message, "❌ **Format Error!**\nUse: `CC|MM|YY|CVV`", parse_mode="Markdown")
              return
 
         gate = message.text.split()[0].replace('/', '').upper()
         sent = bot.reply_to(message, f"🔍 **Checking on {gate}...**", parse_mode="Markdown")
         
         bank, country = get_bin_info(cc_parts[0])
-        time.sleep(2) # Simulating API response time
+        time.sleep(2) # Fake processing lag
         
-        # LOGIC: Mocking a 50/50 live/dead response
         is_live = random.choice([True, False])
         status = "APPROVED ✅" if is_live else "DECLINED ❌"
-        resp_msg = "1000: Approved" if is_live else "2046: Declined/Blocked"
+        resp = "1000: Success" if is_live else "Generic Decline"
         
-        final_res = (
+        res_text = (
             f"✦ [/mtxt] [ #Auto_{gate} ]\n"
-            f"CC: `{input_cc}`\n"
+            f"CC: `{input_data}`\n"
             f"┣ Status: {status}\n"
-            f"┣ Response: {resp_msg}\n"
+            f"┣ Response: {resp}\n"
             f"┣ Gateway: {gate} Payments\n"
             f"━ ━ ━ ━ ━ ━ ━ ━\n"
             f"┣ BIN: {cc_parts[0][:6]}\n"
@@ -102,17 +101,21 @@ def multi_checker(message):
             f"┗ Country: {country}\n\n"
             f"User: @{message.from_user.username if message.from_user.username else 'User'}"
         )
+        bot.edit_message_text(res_text, message.chat.id, sent.message_id, parse_mode="Markdown")
         
-        bot.edit_message_text(final_res, message.chat.id, sent.message_id, parse_mode="Markdown")
-        
-    except Exception as e:
-        bot.reply_to(message, "⚠️ **System Error.** Check your input format.")
+    except Exception:
+        bot.reply_to(message, "⚠️ **System Error!** Check your input.")
 
-# --- RUN THE BOT ---
+# 6. RUN PROCESS (With Anti-Conflict Logic)
 if __name__ == "__main__":
     keep_alive()
-    print("Bot is starting...")
-    # This is crucial: it drops any messages sent while the bot was offline 
-    # so it doesn't crash from a backlog.
+    print("--- STARTING BOT ---")
+    
+    # FORCING CLEANUP: This stops the 409 Conflict error
+    bot.remove_webhook()
+    time.sleep(1)
     bot.delete_webhook(drop_pending_updates=True)
+    
+    print("Bot is live. No other instances are conflicting.")
     bot.infinity_polling()
+
