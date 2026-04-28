@@ -2,21 +2,29 @@ import telebot
 import requests
 import random
 import time
+import os
 from telebot import types
 from flask import Flask
 from threading import Thread
 
 # Flask server for 24/7 hosting (Render/Replit)
 app = Flask('')
+
 @app.route('/')
-def home(): return "BOT STATUS: ONLINE 🟢"
+def home():
+    return "BOT STATUS: ONLINE 🟢"
+
+def run():
+    # Render provides a PORT environment variable; this ensures it binds correctly
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host='0.0.0.0', port=port)
 
 def keep_alive():
-    t = Thread(target=lambda: app.run(host='0.0.0.0', port=8080))
+    t = Thread(target=run)
     t.start()
 
 # --- BOT CONFIG ---
- # Ensure 'BOT_TOKEN' is set in Render Environment Variables
+# Ensure 'BOT_TOKEN' is set in Render Environment Variables
 TOKEN = os.environ.get('BOT_TOKEN') 
 bot = telebot.TeleBot(TOKEN)
 
@@ -57,6 +65,9 @@ def callback_inline(call):
         text = "✅ **AUTH GATES**\n\n▷ `/chk` - Auth\n▷ `/st` - Stripe Auth\n▷ `/bt` - Braintree"
     elif call.data == "tools":
         text = "🛠️ **TOOLS**\n\n▷ `/bin` - Check BIN\n▷ `/gen` - Generate CC"
+    elif call.data == "main_menu":
+        welcome(call.message)
+        return
     else:
         return
 
@@ -73,7 +84,6 @@ def multi_checker(message):
             return
 
         input_cc = msg_data[1]
-        # Clean the input in case of spaces
         cc_parts = input_cc.split('|')
         
         if len(cc_parts) < 4:
@@ -86,13 +96,12 @@ def multi_checker(message):
         bank, country = get_bin_info(cc_parts[0])
         time.sleep(2) # Simulating API response time
         
-        # LOGIC: Mocking a 50/50 live/dead response
         is_live = random.choice([True, False])
         status = "APPROVED ✅" if is_live else "DECLINED ❌"
         resp_msg = "1000: Approved" if is_live else "2046: Declined/Blocked"
         
         final_res = (
-            f"✦ [/mtxt] [ #Auto_{gate} ]\n"
+            f"✦ [ #Auto_{gate} ]\n"
             f"CC: `{input_cc}`\n"
             f"┣ Status: {status}\n"
             f"┣ Response: {resp_msg}\n"
@@ -113,8 +122,5 @@ def multi_checker(message):
 if __name__ == "__main__":
     keep_alive()
     print("Bot is starting...")
-    # This is crucial: it drops any messages sent while the bot was offline 
-    # so it doesn't crash from a backlog.
     bot.delete_webhook(drop_pending_updates=True)
     bot.infinity_polling()
-
