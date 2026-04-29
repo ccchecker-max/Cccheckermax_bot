@@ -44,9 +44,9 @@ def get_bin_info(cc):
 def main_menu():
     markup = types.InlineKeyboardMarkup(row_width=2)
     markup.add(
-        types.InlineKeyboardButton("💳 CHARGE", callback_query_data="charge"),
-        types.InlineKeyboardButton("✅ AUTH", callback_query_data="auth"),
-        types.InlineKeyboardButton("🛠️ TOOLS", callback_query_data="tools")
+        types.InlineKeyboardButton("💳 CHARGE", callback_data="charge"),
+types.InlineKeyboardButton("✅ AUTH", callback_data="auth"),
+types.InlineKeyboardButton("🛠️ TOOLS", callback_data="tools")
     )
     return markup
 
@@ -58,8 +58,7 @@ def welcome(message):
 
 @bot.callback_query_handler(func=lambda call: True)
 def callback_inline(call):
-    back = types.InlineKeyboardMarkup().add(types.InlineKeyboardButton("🔙 Back", callback_query_data="main_menu"))
-    
+    back = types.InlineKeyboardButton("🔙 Back", callback_data="main_menu")
     if call.data == "main_menu":
         bot.edit_message_text("💎 **MAIN MENU** 🟢", call.message.chat.id, call.message.message_id, reply_markup=main_menu(), parse_mode="Markdown")
     elif call.data == "charge":
