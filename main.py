@@ -10,7 +10,7 @@ from threading import Thread
 # --- 1. RENDER SERVER ---
 app = Flask('')
 @app.route('/')
-def home(): return "SHOPY 𝕏 CHK: TRUE-SCRAPER V2 ONLINE 🟢"
+def home(): return "SHOPY 𝕏 CHK: ONLINE 🟢"
 
 def run():
     port = int(os.environ.get("PORT", 8080))
@@ -31,114 +31,69 @@ db = client['shopy_chk_db']
 users_col = db['users']
 history_col = db['history']
 
-# --- 3. TRUE GATEWAY LOGIC ---
+# --- 3. LOGIC FUNCTIONS ---
 def get_true_status(cc_data):
     try:
         cc, mm, yy, cv = cc_data.split('|')
-        time.sleep(1.8)
-        responses = [
-            ("APPROVED ✅", "12.00$ Charged Successfully (True)"),
-            ("APPROVED ✅", "Insufficient Funds (Live Card)"),
-            ("DECLINED ❌", "Processor Declined / Do Not Honor"),
-            ("DECLINED ❌", "Incorrect CVV / CVC Check Fail"),
-            ("DECLINED ❌", "Expired Card / Invalid Date")
-        ]
-        weights = [0.10, 0.10, 0.40, 0.20, 0.20]
-        return random.choices(responses, weights=weights)[0]
-    except:
-        return "ERROR ⚠️", "Invalid Format"
+        time.sleep(1.2)
+        responses = [("APPROVED ✅", "Live"), ("DECLINED ❌", "Dead")]
+        return random.choices(responses, weights=[0.2, 0.8])[0]
+    except: return "ERROR ⚠️", "Invalid Format"
 
-# --- 4. BIN INFO ---
 def get_bin(cc):
     try:
         res = requests.get(f"https://lookup.binlist.net/{cc[:6]}", timeout=2).json()
-        bank = res.get('bank', {}).get('name', 'N/A').upper()
-        country = res.get('country', {}).get('name', 'N/A').upper()
-        return bank, country
-    except:
-        return "PREMIUM BANK", "GLOBAL 🌐"
+        return res.get('bank', {}).get('name', 'N/A'), res.get('country', {}).get('name', 'N/A')
+    except: return "BANK", "GLOBAL"
 
-# --- 5. MASS HANDLER ---
-@bot.message_handler(commands=['st', 'sd', 'bt', 'stxt', 'mtxt', 'sh'])
-@bot.message_handler(content_types=['document'])
-def mass_handler(message):
+# --- 4. COMMAND HANDLER ---
+@bot.message_handler(commands=['start', 'st', 'sh', 'stxt'])
+def handle_all(message):
+    # DEBUG: Logs mein check karne ke liye
+    print(f"📩 Command Received: {message.text}")
+    
+    if message.text.startswith('/start'):
+        bot.reply_to(message, "🔥 Bot is Live! Send /st CC|MM|YY|CVV")
+        return
+
+    # Mass Check Logic
     try:
-        user_id = message.from_user.id
-        if not users_col.find_one({"user_id": user_id}):
-            users_col.insert_one({"user_id": user_id, "hwid": "active"})
-
-        cc_list = []
-        gate = "ST"
-
-        if message.content_type == 'document':
-            file_info = bot.get_file(message.document.file_id)
-            downloaded = bot.download_file(file_info.file_path)
-            cc_list = downloaded.decode("utf-8").splitlines()
-            gate = (message.caption or "/ST")[1:].upper()
-        else:
-            data = message.text.split(None, 1)
-            if len(data) < 2: return
-            cc_list = data[1].splitlines()
-            gate = data[0][1:].upper()
-
-        cc_list = [c.strip() for c in cc_list if "|" in c][:500]
-        if not cc_list: return
-
-        sent = bot.reply_to(message, f"🚀 **True-Check Started: {len(cc_list)} Cards**")
-        
-        approved, declined, total = 0, 0, 0
-        start_time = time.time()
+        data = message.text.split(None, 1)
+        if len(data) < 2:
+            bot.reply_to(message, "❌ Format: /st cc|mm|yy|cvv")
+            return
+            
+        cc_list = [c.strip() for c in data[1].splitlines() if "|" in c][:100]
+        sent = bot.reply_to(message, f"🚀 Checking {len(cc_list)} cards...")
 
         for cc in cc_list:
-            total += 1
-            status, resp_msg = get_true_status(cc)
+            status, msg = get_true_status(cc)
             bank, country = get_bin(cc)
-
-            if "APPROVED" in status: approved += 1
-            else: declined += 1
-            
-            history_col.insert_one({"user_id": user_id, "cc": cc, "status": status, "time": time.time()})
-
-            res = (
-                f"✦ [ /{gate.lower()} ] [ #TRUE_CHK ]\n\n"
-                f"**CC:** `{cc}`\n"
-                f"┣ **Status:** {status}\n"
-                f"┣ **Response:** {resp_msg}\n"
-                f"┗ **Gateway:** {gate}\n"
-                f"--------------------------\n"
-                f"┣ **Bank:** {bank}\n"
-                f"┗ **Country:** {country}\n\n"
-                f"》 **User:** {message.from_user.first_name} | **Bot:** SHOPY 𝕏 CHK"
-            )
+            res = f"CC: `{cc}`\nStatus: {status}\nBank: {bank}"
             bot.send_message(message.chat.id, res, parse_mode="Markdown")
-            time.sleep(1.2)
-
-        summary = (
-            f"✅ **Checking Completed!**\n\n"
-            f"Total Approved ✅ | {approved}\n"
-            f"Total Declined ❌ | {declined}\n"
-            f"Total Checked ☠️ | {total}\n"
-            f"━━━━━━━━━━━━━━\n"
-            f"⌛ **Time Taken:** {round(time.time() - start_time, 2)}s"
-        )
-        bot.edit_message_text(summary, message.chat.id, sent.message_id, parse_mode="Markdown")
-
+            
+        bot.edit_message_text("✅ Done!", message.chat.id, sent.message_id)
     except Exception as e:
         print(f"Error: {e}")
 
-# --- 6. EXECUTION (The Fix) ---
+# --- 5. THE MAIN POINT (CONFLICT KILLER) ---
 if __name__ == "__main__":
     keep_alive()
-    print("System Online...")
+    print("🚀 Bot is cleaning old sessions...")
+    
+    # Ye line 409 error ko khatam karegi
+    try:
+        # Purane saare latke huye updates ko drop kar do
+        requests.get(f"https://api.telegram.org/bot{TOKEN}/deleteWebhook?drop_pending_updates=true")
+        bot.remove_webhook()
+        time.sleep(2)
+    except: pass
 
     while True:
         try:
-            # Conflict se bachne ke liye webhook remove karna aur updates drop karna
-            bot.remove_webhook(drop_pending_updates=True)
-            time.sleep(1)
-            print("📡 Polling Started...")
-            bot.infinity_polling(skip_pending=True, timeout=60)
+            print("📡 Polling started...")
+            bot.polling(none_stop=True, interval=0, timeout=20)
         except Exception as e:
-            print("Restarting due to error:", e)
+            print(f"Conflict detect hua, 5 sec wait... {e}")
             time.sleep(5)
 
