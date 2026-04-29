@@ -117,7 +117,7 @@ def vbv_cmd(message):
         bot.reply_to(message, "⚠️ Use: `/vbv CC|MM|YY|CVV` or reply to CC.")
 
 # --- MASS & FILE CHECKER (500 CARDS SUPPORT) ---
-@@bot.message_handler(commands=['sd', 'st', 'sh', 'bt', 'pp', 'msh', 'mst', 'stxt'])
+@bot.message_handler(commands=['sd', 'st', 'sh', 'bt', 'pp', 'msh', 'mst', 'stxt'])
 @bot.message_handler(content_types=['document'])
 def mass_handler(message):
     try:
