@@ -88,11 +88,16 @@ def bin_cmd(message):
 @bot.message_handler(commands=['vbv'])
 def vbv_cmd(message):
     try:
-        cc = message.text.split()[1] if len(message.text.split()) > 1 else ""
+        args = message.text.split()
+        cc = args[1] if len(args) > 1 else ""
         if not cc and message.reply_to_message:
-            cc = message.reply_to_message.text.split()[1]
+            # Check if it's a command or raw card in the reply
+            replied_text = message.reply_to_message.text
+            cc = replied_text.split()[-1] if "|" in replied_text else ""
         
-        if "|" not in cc: raise ValueError
+        if not cc or "|" not in cc:
+            bot.reply_to(message, "⚠️ Use: `/vbv CC|MM|YY|CVV` or reply to CC.")
+            return
         
         sent = bot.reply_to(message, "🔍 **VBV LOOKUP...**", parse_mode="Markdown")
         start = time.time()
@@ -114,10 +119,10 @@ def vbv_cmd(message):
         )
         bot.edit_message_text(res, message.chat.id, sent.message_id, parse_mode="Markdown")
     except:
-        bot.reply_to(message, "⚠️ Use: `/vbv CC|MM|YY|CVV` or reply to CC.")
+        bot.reply_to(message, "⚠️ Error in VBV lookup.")
 
 # --- MASS & FILE CHECKER (500 CARDS SUPPORT) ---
-@bot.message_handler(commands=['sd', 'st', 'sh', 'bt', 'pp', 'msh', 'mst', 'stxt'])
+@bot.message_handler(commands=['sd', 'st', 'sh', 'bt', 'pp', 'msh', 'mst', 'stxt', 'mtxt'])
 @bot.message_handler(content_types=['document'])
 def mass_handler(message):
     try:
@@ -134,71 +139,66 @@ def mass_handler(message):
             cc_list = data[1].splitlines()
             gate = data[0][1:].upper()
 
-        cc_list = cc_list[:500] # Limit 500
+        cc_list = [c.strip() for c in cc_list if "|" in c][:500] # Clean list and limit 500
+        if not cc_list: return
+
         sent = bot.reply_to(message, f"🚀 **Starting Check: {len(cc_list)} Cards**", parse_mode="Markdown")
         
         approved, declined, total = 0, 0, 0
         start_time = time.time()
 
         for cc in cc_list:
-            cc = cc.strip()
-            if "|" not in cc: continue
-            
             total += 1
             bank, country, _, _ = get_bin_info(cc.split('|')[0])
             status = "APPROVED ✅" if random.choice([True, False]) else "DECLINED ❌"
             if "APPROVED" in status: approved += 1
             else: declined += 1
             
-            # Send single result (Only for small lists, else it hits flood limits)
-            if len(cc_list) <= 5:
-                res = (
-                    f"✦ [ /{gate.lower()} ] [ #SHOPY_CHK ]\n\n"
-                    f"**CC:** `{cc}`\n"
-                    f"┣ **Status:** {status}\n"
-                    f"┣ **Response:** {get_response_msg(status)}\n"
-                    f"┗ **Gateway:** {gate}\n"
-                    f"--------------------------\n"
-                    f"┣ **Bank:** {bank}\n"
-                    f"┗ **Country:** {country}\n\n"
-                    f"》 **User:** {message.from_user.first_name} | **Bot:** SHOPY 𝕏 CHK"
-                )
-                bot.send_message(message.chat.id, res, parse_mode="Markdown")
+            # Har result bhejega
+            res = (
+                f"✦ [ /{gate.lower()} ] [ #SHOPY_CHK ]\n\n"
+                f"**CC:** `{cc}`\n"
+                f"┣ **Status:** {status}\n"
+                f"┣ **Response:** {get_response_msg(status)}\n"
+                f"┗ **Gateway:** {gate}\n"
+                f"--------------------------\n"
+                f"┣ **Bank:** {bank}\n"
+                f"┗ **Country:** {country}\n\n"
+                f"》 **User:** {message.from_user.first_name} | **Bot:** SHOPY 𝕏 CHK"
+            )
+            bot.send_message(message.chat.id, res, parse_mode="Markdown")
             
-            # Flood control for mass checking
+            # Anti-flood control
             time.sleep(1.2)
 
-        # Final Summary
-        summary = (
-            f"✅ **Checking Completed!**\n\n"
-            f"Total Approved ✅ | {approved}\n"
-            f"Total Declined ❌ | {declined}\n"
-            f"Total Checked ☠️ | {total}\n"
-            f"━━━━━━━━━━━━━━\n"
-            f"⌛ **Time Taken:** {round(time.time() - start_time, 2)}s"
-        )
-        bot.edit_message_text(summary, message.chat.id, sent.message_id, parse_mode="Markdown")
+        # SIRF SUMMARY TAB DIKHAYE JAB CARDS 1 SE ZYADA HO
+        if len(cc_list) > 1:
+            summary = (
+                f"✅ **Checking Completed!**\n\n"
+                f"Total Approved ✅ | {approved}\n"
+                f"Total Declined ❌ | {declined}\n"
+                f"Total Checked ☠️ | {total}\n"
+                f"━━━━━━━━━━━━━━\n"
+                f"⌛ **Time Taken:** {round(time.time() - start_time, 2)}s"
+            )
+            bot.edit_message_text(summary, message.chat.id, sent.message_id, parse_mode="Markdown")
+        else:
+            try:
+                bot.delete_message(message.chat.id, sent.message_id)
+            except:
+                pass
 
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Error in mass_handler: {e}")
 
 if __name__ == "__main__":
     keep_alive()
     print("System Online...")
 
-    try:
-        bot.remove_webhook()
-        time.sleep(2)
-    except Exception as e:
-        print(e)
-
     while True:
         try:
-            bot.infinity_polling(
-                skip_pending=True,
-                timeout=30,
-                long_polling_timeout=30
-            )
+            bot.remove_webhook()
+            bot.infinity_polling(skip_pending=True, timeout=60)
         except Exception as e:
-            print("Restarting:", e)
+            print("Restarting bot due to error:", e)
             time.sleep(5)
