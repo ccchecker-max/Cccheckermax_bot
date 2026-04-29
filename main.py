@@ -139,5 +139,20 @@ def mass_handler(message):
         print(f"Error: {e}")
 
 if __name__ == "__main__":
+    # Flask server ko background mein start karna
     keep_alive()
-    bot.infinity_polling(skip_pending=True)
+    
+    print("🚀 Bot is starting...")
+    
+    # Is tareeke se polling setup karne par Conflict 409 ke chances 90% kam ho jaate hain
+    while True:
+        try:
+            bot.infinity_polling(
+                skip_pending=True, 
+                timeout=20, 
+                long_polling_timeout=10, 
+                logger_level=None
+            )
+        except Exception as e:
+            print(f"⚠️ Polling Error: {e}")
+            time.sleep(5) # Error aane par 5 second wait karke restart karega
