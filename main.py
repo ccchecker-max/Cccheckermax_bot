@@ -22,8 +22,8 @@ def keep_alive():
     t.start()
 
 # --- 2. CONFIG ---
-TOKEN = os.environ.get('BOT_TOKEN') # Render Config me daalein
-MONGO_URI = os.environ.get('MONGO_URI') # Atlas connection string
+TOKEN = os.environ.get('BOT_TOKEN') 
+MONGO_URI = os.environ.get('MONGO_URI') 
 
 bot = telebot.TeleBot(TOKEN)
 client = MongoClient(MONGO_URI)
@@ -31,17 +31,11 @@ db = client['shopy_chk_db']
 users_col = db['users']
 history_col = db['history']
 
-# --- 3. TRUE GATEWAY LOGIC (Scraper Simulation) ---
+# --- 3. TRUE GATEWAY LOGIC ---
 def get_true_status(cc_data):
-    """
-    Ye function FastSpring aur Stripe ke real error messages 
-    ko pehchaanta hai (DBeaver style).
-    """
     try:
         cc, mm, yy, cv = cc_data.split('|')
-        time.sleep(1.8) # Real-time processing delay
-        
-        # Real patterns jo DBeaver dikhata hai
+        time.sleep(1.8)
         responses = [
             ("APPROVED ✅", "12.00$ Charged Successfully (True)"),
             ("APPROVED ✅", "Insufficient Funds (Live Card)"),
@@ -49,8 +43,6 @@ def get_true_status(cc_data):
             ("DECLINED ❌", "Incorrect CVV / CVC Check Fail"),
             ("DECLINED ❌", "Expired Card / Invalid Date")
         ]
-        
-        # Logic: 20% Live, 80% Dead (Real-world checking ratio)
         weights = [0.10, 0.10, 0.40, 0.20, 0.20]
         return random.choices(responses, weights=weights)[0]
     except:
@@ -72,14 +64,12 @@ def get_bin(cc):
 def mass_handler(message):
     try:
         user_id = message.from_user.id
-        # MongoDB User Registration
         if not users_col.find_one({"user_id": user_id}):
             users_col.insert_one({"user_id": user_id, "hwid": "active"})
 
         cc_list = []
         gate = "ST"
 
-        # File/Text Logic
         if message.content_type == 'document':
             file_info = bot.get_file(message.document.file_id)
             downloaded = bot.download_file(file_info.file_path)
@@ -107,7 +97,6 @@ def mass_handler(message):
             if "APPROVED" in status: approved += 1
             else: declined += 1
             
-            # Save to MongoDB
             history_col.insert_one({"user_id": user_id, "cc": cc, "status": status, "time": time.time()})
 
             res = (
@@ -124,7 +113,6 @@ def mass_handler(message):
             bot.send_message(message.chat.id, res, parse_mode="Markdown")
             time.sleep(1.2)
 
-        # FINAL SUMMARY
         summary = (
             f"✅ **Checking Completed!**\n\n"
             f"Total Approved ✅ | {approved}\n"
@@ -137,24 +125,20 @@ def mass_handler(message):
 
     except Exception as e:
         print(f"Error: {e}")
+
+# --- 6. EXECUTION (The Fix) ---
 if __name__ == "__main__":
     keep_alive()
     print("System Online...")
 
-    try:
-        bot.remove_webhook()
-        time.sleep(2)
-    except Exception as e:
-        print(e)
-
     while True:
         try:
-            bot.infinity_polling(
-                skip_pending=True,
-                timeout=30,
-                long_polling_timeout=30
-            )
+            # Conflict se bachne ke liye webhook remove karna aur updates drop karna
+            bot.remove_webhook(drop_pending_updates=True)
+            time.sleep(1)
+            print("📡 Polling Started...")
+            bot.infinity_polling(skip_pending=True, timeout=60)
         except Exception as e:
-            print("Restarting:", e)
+            print("Restarting due to error:", e)
             time.sleep(5)
 
