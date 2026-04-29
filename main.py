@@ -185,4 +185,20 @@ def mass_handler(message):
 if __name__ == "__main__":
     keep_alive()
     print("System Online...")
-    bot.infinity_polling(skip_pending=True)
+
+    try:
+        bot.remove_webhook()
+        time.sleep(2)
+    except Exception as e:
+        print(e)
+
+    while True:
+        try:
+            bot.infinity_polling(
+                skip_pending=True,
+                timeout=30,
+                long_polling_timeout=30
+            )
+        except Exception as e:
+            print("Restarting:", e)
+            time.sleep(5)
