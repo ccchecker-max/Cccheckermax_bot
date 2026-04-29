@@ -21,15 +21,24 @@ def keep_alive():
     t.daemon = True
     t.start()
 
-# --- 2. CONFIG ---
-TOKEN = os.environ.get('BOT_TOKEN') 
-MONGO_URI = os.environ.get('MONGO_URI') 
+# --- 2. CONFIG & DATABASE ---
+TOKEN = os.environ.get('BOT_TOKEN')
+MONGO_URI = os.environ.get('MONGO_URI')
 
-bot = telebot.TeleBot(TOKEN)
-client = MongoClient(MONGO_URI)
-db = client['shopy_chk_db']
-users_col = db['users']
-history_col = db['history']
+print("🚀 Starting Bot...") # Logs mein ye dikhna chahiye
+
+try:
+    # 30 second ka timeout diya hai taaki agar connect na ho toh error dikhaye
+    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=30000)
+    # Connection check karne ke liye ping command
+    client.admin.command('ping')
+    db = client['shopy_chk_db']
+    users_col = db['users']
+    history_col = db['history']
+    print("✅ MongoDB Connected Successfully!") 
+except Exception as e:
+    print(f"❌ MongoDB Connection Error: {e}")
+
 
 # --- 3. LOGIC FUNCTIONS ---
 def get_true_status(cc_data):
